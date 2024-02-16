@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 
-const folderPath = 'csv';
+const folderPath = 'csv2';
 
 async function extractTimetables(files) {
     let res = []
@@ -90,25 +90,73 @@ function removeUnnessesaryRows(table) {
     return table
 }
 
-function processTimetable(timetable) {
-    const weekday = timetable[0].filter( entry => entry !== "")[0];
+function processTimetable(acc, timetable) {
     const hasExceptionalTrains = timetable[1][0] === "";
-    const specialRules = hasExceptionalTrains? timetable[1] : [];
+    const specialRules = hasExceptionalTrains? timetable[1] : undefined;
+    let weekday = shortenWeekdayName(timetable[0].filter( entry => entry !== "")[0]);
 
     timetable.splice(0, 1 + hasExceptionalTrains)
 
     timetable = removeArrivalStation(timetable)
 
-    const stations_raw = timetable.reduce((acc, row) => {
+    let stations = timetable.reduce((acc, row) => {
         acc.push(row.splice(0, 1)[0]);
         return acc;
     }, []);
 
-    const stations = unifyStationNaming(stations_raw)
+    stations = unifyStationNaming(stations)
+
+    const direction = `Richtung ${stations[stations.length - 1]}`
 
     timetable = changeToRegularTimeFormat(timetable)
 
-    return timetable
+    let trackHour = 0
+    let changeOfDay = false
+
+    timetable.forEach((row, y) => {
+        row.forEach((time, x) => {
+            if (time === "")
+                return
+
+            const rule = hasExceptionalTrains? specialRules[x] : undefined;
+
+            const [hour, minute] = time.split('.')
+
+            if (trackHour > hour)
+                changeOfDay = true
+            trackHour = hour
+
+            addToJSON({
+                acc,
+                station: stations[y],
+                direction,
+                weekday,
+                hour,
+                minute,
+                changeOfDay,
+                rule
+            })
+
+            
+        })
+    })
+
+    return acc
+}
+
+function shortenWeekdayName(weekday) {
+    switch (weekday) {
+        case 'montags bis donnerstags':
+            return 'MoDo'
+        case 'freitags':
+            return 'Fr'
+        case 'samstags':
+            return 'Sa'
+        case 'sonn- und feiertags':
+            return 'So'
+        default:
+            throw new Error(`Cannot shorten weekday ${weekday}`);
+    }
 }
 
 function changeToRegularTimeFormat(table) {
@@ -162,6 +210,37 @@ function unifyStationNaming(stations) {
     return stations
 }
 
+function addToJSON({
+    acc,
+    station,
+    direction,
+    weekday,
+    hour,
+    minute,
+    changeOfDay,
+    rule
+}) {
+    pushToNestedDict(acc, [direction,station,weekday,hour], minute)
+}
+
+function pushToNestedDict(dict, keys, value) {
+    let current = dict;
+
+    keys.forEach((key, i) => {
+        if (!current[key]) {
+            if (i === keys.length - 1) {
+                current[key] = [];
+            } else {
+                current[key] = {};
+            }
+        }
+
+        current = current[key];
+    });
+
+    current.push(value)
+}
+
 fs.readdir(folderPath, (err, files) => {
     if (err) {
         console.error('Error reading directory:', err);
@@ -170,10 +249,12 @@ fs.readdir(folderPath, (err, files) => {
 
     extractTimetables(files).then(
         timetables => {
+            const acc = {}
             timetables.forEach(timetable =>
-                processTimetable(timetable)
-                    // JSON.stringify())
+                processTimetable(acc,timetable)
             )
+            fs.writeFileSync('result.json', JSON.stringify(acc, null, 2));
         }
+        
     )
 });
