@@ -234,6 +234,8 @@ function addToJSON({
             case 'MoDo':
                 //Wird MoDo und Fr Morgen gefüllt
                 pushToNestedDict(acc, [direction,station,'Fr',hour], minute);
+                if (rule !== 'RU')
+                    pushToNestedDict(acc, [direction,station,`Fr-Ferien`,hour], minute)
                 break;
             case 'Fr':
                 //Füllt Sa Morgen
