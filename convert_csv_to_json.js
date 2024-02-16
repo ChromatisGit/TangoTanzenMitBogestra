@@ -39,7 +39,50 @@ async function extractTimetables(files) {
         }
     }
 
+    res = res.map(table => table = removeUnnessesaryRows(table))
+
+    const splitTimetables = splitOneTableInTwo(res.filter( (timetable) => amountOfTables(timetable) > 1 ))
+
+    return res.filter( timetable => amountOfTables(timetable) === 1 ).concat(splitTimetables)
+}
+
+function splitOneTableInTwo(timetables) {
+    const res = []
+
+    timetables.forEach( table => {
+        let emptyColumnIndex = -1
+
+        for (let i = 0; i < table[0].length; i++) {
+            if (table.every(row => row[i] === "")) {
+                emptyColumnIndex = i
+                break
+            }
+        }
+    
+        const firstTable = table.map(row => row.slice(0, emptyColumnIndex));
+        let secondTable = table.map(row => row.slice(emptyColumnIndex));
+    
+        secondTable = secondTable.map((row, i) => {
+            row.unshift(firstTable[i][0]);
+            return row;
+        });
+    
+        res.push(firstTable);
+        res.push(secondTable);
+    })
+
     return res
+}
+
+function removeUnnessesaryRows(table) {
+    table.splice(1,2)
+
+    for (let i = table.length-1; i >= 0; i--) {
+        if (table[i][0].startsWith("-"))
+            return table.slice(0,i)
+    }
+
+    return table
 }
 
 fs.readdir(folderPath, (err, files) => {
