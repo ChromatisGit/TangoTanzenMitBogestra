@@ -12,6 +12,23 @@ async function readFile(filePath) {
     });
 }
 
+function getPeriod(weekday) {
+    switch (weekday) {
+        case 'Mo':
+        case 'Di':
+        case 'Mo':
+        case 'Mi':
+        case 'Do':
+            return 'MoDo';
+        case 'Fr':
+        case 'Sa':
+        case 'So':
+            return weekday;
+        default:
+            throw new Error("Please only use Mo, Di, Mi, Do, Fr, Sa or So");
+    }
+}
+
 function nextTrains({
     timetable,
     weekday,
@@ -20,34 +37,19 @@ function nextTrains({
     minute,
     direction,
     semesterBreak = false,
-    holidayToday = false,
-    holidayTomorrow = false,
+    holiday = false,
     limit = 1
 }) {
 
-    let period;
-
-    switch (weekday) {
-        case 'Mo':
-        case 'Di':
-        case 'Mo':
-        case 'Mi':
-        case 'Do':
-            period = 'MoDo';
-            break;
-        case 'Fr':
-        case 'Sa':
-        case 'So':
-            period = weekday;
-            break;
-        default:
-            throw new Error("Please only use Mo, Di, Mi, Do, Fr, Sa or So");
-    }
+    let period = getPeriod(weekday);
 
     if(semesterBreak && (period === 'MoDo' || period === 'Fr'))
         period = `${period}-Ferien`
 
     res = []
+
+    if (holiday)
+        period = 'Feiertag'
 
     hour = parseInt(hour)
     minute = parseInt(minute)
@@ -65,8 +67,14 @@ function nextTrains({
     
         hour += 1;
         minute = 0;
-        if (hour > 23) //TODO
-            return null;
+        if (hour > 23) {
+            hour = 0
+            const daysOfWeek = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+            const index = daysOfWeek.indexOf(weekday);
+            weekday = daysOfWeek[(index + 1) % 7]
+            period = getPeriod(weekday);
+        }
+            
     }
 
     return res
@@ -82,9 +90,9 @@ async function main() {
         timetable,
         station: 'Herne Schloß Strünkede',
         direction: 'Richtung Bochum Hustadt (TQ)',
-        weekday: 'Sa',
-        hour: 18,
-        minute: 15,
+        weekday: 'Mo',
+        hour: 15,
+        minute: 30,
         limit: 3
     }))
 }
