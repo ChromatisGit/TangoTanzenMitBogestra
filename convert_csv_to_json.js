@@ -97,6 +97,8 @@ function processTimetable(timetable) {
 
     timetable.splice(0, 1 + hasExceptionalTrains)
 
+    timetable = removeArrivalStation(timetable)
+
     const stations_raw = timetable.reduce((acc, row) => {
         acc.push(row.splice(0, 1)[0]);
         return acc;
@@ -127,6 +129,17 @@ function changeToRegularTimeFormat(table) {
     }
 
     return table
+}
+
+function removeArrivalStation(table) {
+    return table
+    .filter(row => !row[0].endsWith('\n an'))
+    .map(row => {
+        if (row[0].endsWith('\n ab'))
+            row[0] = row[0].slice(0, -5)
+
+        return row
+        })
 }
 
 function unifyStationNaming(stations) {
