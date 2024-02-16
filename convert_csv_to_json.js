@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
 
-const folderPath = 'csv2';
+const folderPath = 'csv';
 
 async function extractTimetables(files) {
     let res = []
@@ -92,7 +92,7 @@ function removeUnnessesaryRows(table) {
 
 function processTimetable(acc, timetable) {
     const hasExceptionalTrains = timetable[1][0] === "";
-    const specialRules = hasExceptionalTrains? timetable[1] : undefined;
+    const specialRules = hasExceptionalTrains? timetable[1].slice(1) : undefined;
     let weekday = shortenWeekdayName(timetable[0].filter( entry => entry !== "")[0]);
 
     timetable.splice(0, 1 + hasExceptionalTrains)
@@ -118,9 +118,9 @@ function processTimetable(acc, timetable) {
             if (time === "")
                 return
 
-            const rule = hasExceptionalTrains? specialRules[x] : undefined;
+            const rule = hasExceptionalTrains? specialRules[x] : '';
 
-            const [hour, minute] = time.split('.')
+            let [hour, minute] = time.split('.')
 
             if (trackHour > hour)
                 changeOfDay = true
@@ -220,7 +220,43 @@ function addToJSON({
     changeOfDay,
     rule
 }) {
-    pushToNestedDict(acc, [direction,station,weekday,hour], minute)
+    //Feiertag wird mit allen Einträgen am Sonntag gefüllt außer NiS
+    if(weekday === 'So' && rule !== 'NiS')
+        pushToNestedDict(acc, [direction,station,'Feiertag',hour], minute)
+
+    //Nur für Feiertage somit wird alles andere ignoriert
+    if(rule === 'NE' || rule === 'VF')
+        return
+
+    //Wenn es nach 0 Uhr ist
+    if(changeOfDay) {
+        switch(weekday) {
+            case 'MoDo':
+                //Wird MoDo und Fr Morgen gefüllt
+                pushToNestedDict(acc, [direction,station,'Fr',hour], minute);
+                break;
+            case 'Fr':
+                //Füllt Sa Morgen
+                weekday = 'Sa'
+                break;
+            case 'Sa':
+                //Füllt So Morgen
+                weekday = 'So'
+                break
+            case 'So':
+                //Wird nur bei Feiertagen verwendet, also hier gar nicht
+                return
+        }
+
+    }
+    
+    //Added außer wenn die Bahn nur in den Ferien fährt
+    if (rule !== 'nVR')
+        pushToNestedDict(acc, [direction,station,weekday,hour], minute)
+        
+    //Added zu einer Ferientabelle außer wenn es nur in der Vorlesungszeit fährt
+    if (rule !== 'RU' && (weekday === 'MoDo' || weekday === 'Fr'))
+        pushToNestedDict(acc, [direction,station,`${weekday}-Ferien`,hour], minute)
 }
 
 function pushToNestedDict(dict, keys, value) {
@@ -239,6 +275,11 @@ function pushToNestedDict(dict, keys, value) {
     });
 
     current.push(value)
+}
+
+function test(testListe, station, msg) {
+    if (station === 'Bochum Hustadt (TQ)')
+        testListe.push(msg)
 }
 
 fs.readdir(folderPath, (err, files) => {
