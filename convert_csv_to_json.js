@@ -85,6 +85,21 @@ function removeUnnessesaryRows(table) {
     return table
 }
 
+function processTimetable(timetable) {
+    const weekday = timetable[0].filter( entry => entry !== "")[0];
+    const hasExceptionalTrains = timetable[1][0] === "";
+    const specialRules = hasExceptionalTrains? timetable[1] : [];
+
+    timetable.splice(0, 1 + hasExceptionalTrains)
+
+    const stations = timetable.reduce((acc, row) => {
+        acc.push(row.splice(0, 1)[0]);
+        return acc;
+    }, []);
+
+    return timetable
+}
+
 fs.readdir(folderPath, (err, files) => {
     if (err) {
         console.error('Error reading directory:', err);
@@ -94,7 +109,7 @@ fs.readdir(folderPath, (err, files) => {
     extractTimetables(files).then(
         timetables => {
             timetables.forEach(timetable =>
-                console.log(JSON.stringify(timetable))
+                console.log(JSON.stringify(processTimetable(timetable)))
             )
         }
     )
