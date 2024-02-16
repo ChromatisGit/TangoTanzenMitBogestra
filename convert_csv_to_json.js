@@ -46,6 +46,11 @@ async function extractTimetables(files) {
     return res.filter( timetable => amountOfTables(timetable) === 1 ).concat(splitTimetables)
 }
 
+function amountOfTables(timetable) {
+    const row = timetable[0]
+    return row.filter( entry => entry !== "").length
+}
+
 function splitOneTableInTwo(timetables) {
     const res = []
 
