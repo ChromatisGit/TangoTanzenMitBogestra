@@ -97,7 +97,29 @@ function processTimetable(timetable) {
         return acc;
     }, []);
 
+    timetable = changeToRegularTimeFormat(timetable)
+
     return timetable
+}
+
+function changeToRegularTimeFormat(table) {
+    for (let i = 0; i < table[0].length; i++) {
+        let hour = undefined;
+
+        table.forEach(row => {
+            if (row[i] === "" || row[i] === undefined)
+                return
+
+            if (row[i].includes('.')) {
+                hour = row[i].split('.')[0];
+                return
+            }
+
+            row[i] = `${hour}.${row[i]}`;
+        })
+    }
+
+    return table
 }
 
 fs.readdir(folderPath, (err, files) => {
