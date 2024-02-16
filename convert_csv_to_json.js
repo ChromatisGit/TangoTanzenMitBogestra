@@ -84,7 +84,7 @@ function removeUnnessesaryRows(table) {
 
     for (let i = table.length-1; i >= 0; i--) {
         if (table[i][0].startsWith("-"))
-            return table.slice(0,i)
+            return table.slice(0,i+1)
     }
 
     return table
@@ -97,10 +97,12 @@ function processTimetable(timetable) {
 
     timetable.splice(0, 1 + hasExceptionalTrains)
 
-    const stations = timetable.reduce((acc, row) => {
+    const stations_raw = timetable.reduce((acc, row) => {
         acc.push(row.splice(0, 1)[0]);
         return acc;
     }, []);
+
+    const stations = unifyStationNaming(stations_raw)
 
     timetable = changeToRegularTimeFormat(timetable)
 
@@ -127,6 +129,26 @@ function changeToRegularTimeFormat(table) {
     return table
 }
 
+function unifyStationNaming(stations) {
+    let city = undefined;
+
+    stations.forEach((station, i) => {
+        if (station.startsWith('-')) {
+            station = station.slice(2)
+
+            if(!station.startsWith(city))
+                station = `${city} ${station}`
+
+            stations[i] = station
+            return
+        }
+
+        city = station.split(' ')[0];
+    })
+
+    return stations
+}
+
 fs.readdir(folderPath, (err, files) => {
     if (err) {
         console.error('Error reading directory:', err);
@@ -136,7 +158,8 @@ fs.readdir(folderPath, (err, files) => {
     extractTimetables(files).then(
         timetables => {
             timetables.forEach(timetable =>
-                console.log(JSON.stringify(processTimetable(timetable)))
+                processTimetable(timetable)
+                    // JSON.stringify())
             )
         }
     )
